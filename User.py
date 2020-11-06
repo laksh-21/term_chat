@@ -5,9 +5,6 @@ class User:
         self.address = address
         self.active = True
     
-    def __repr__(self):
-        print("Name: {}\nSocket: {}\nAddress: {}".format(self.user_name, self.client_socket, self.address))
-    
     def set_user_name(self, user_name):
         self.user_name = user_name
     

@@ -29,16 +29,51 @@ def get_text(user):
     else:
         return False
 
+def send_text(user, text):
+    """SENDS ANY TEXT TO THE CLIENT
 
+    Args:
+        text (str): THE TEXT THAT NEEDS TO BE SENT
+    """   
+
+    text_length = get_message_length(text)
+    user.client_socket.send(text_length)
+
+    text_encoded = text.encode(FORMAT)
+    user.client_socket.send(text_encoded)
+
+def broadcast(user, message):
+    """FOR THE MESSAGE SENT BY A USER TO BE SEEN BY EVERYONE
+
+    Args:
+        user (User): THE USER WHO SENT THE MESSAGE
+        message (str): THE SESSAGE SENT BY USER
+    """    
+
+    for users in ACTIVE_USERS:
+        if users != user:
+            text = "{}: {}".format(user.user_name, message)
+            send_text(users, text)
+            
 def global_message(user):
-    """PUTS A TEXT MESSAGE IN THE GLOBAL CHAT"""
+    """PUTS A TEXT MESSAGE IN THE GLOBAL CHAT
+
+    Args:
+        user (User): THE USER WHO IS SENDING THIS GLOBAL MESSAGE
+    """    
+
     message = get_text(user)
     if message:
         print("[{who}]: {what}".format(who=user.user_name, what=message))
+        broadcast(user, message)
 
 
 def user_login(user):
-    """CREATES NEW USER OR TOGGLES EXISITING USER ONLINE"""
+    """lOGS THE USER IN WITH THEIR USERNAME
+
+    Args:
+        user (User): THE USER WHO IS LOGGING IN
+    """    
     command = get_command(user)
     if(command == LOGIN):
         user_name = get_text(user)
@@ -49,12 +84,15 @@ def user_login(user):
 
 def disconnect_user(user):
     user.active = False
+    user.client_socket.close()
 
 def serve_client(user):
-    """THREAD FOR A CLIENT WHICH PROVIDES ALL SERVICES"""
     print("[NEW CONNECTION] {address}".format(address=user.address))
 
     user_login(user)
+
+    message = "has joined the chat."
+    broadcast(user, message)
 
     while user.active:
         command = get_command(user)
@@ -64,9 +102,13 @@ def serve_client(user):
             elif(command == DISCONNET_MESSAGE):
                 disconnect_user(user)
         else:
-            user.active = False
+            disconnect_user(user)
     
+    ACTIVE_USERS.remove(user)
     print("[USER DISCONNECTION] {address}".format(address=user.address))
+
+    message = "has left the chat."
+    broadcast(user, message)
     
 
 def create_user(client_socket, address):
