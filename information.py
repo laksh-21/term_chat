@@ -7,6 +7,7 @@ SERVER_ADDRESS = (SERVER, PORT)
 FORMAT = "utf-8"
 DISCONNET_MESSAGE = "!DIS!"
 TEXT_MESSAGE = "!TXT!"
+LOGIN = "!LOG!"
 
 
 def get_message_length(message):

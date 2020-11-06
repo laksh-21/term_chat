@@ -19,21 +19,30 @@ class Client():
         command_encoded = command.encode(FORMAT)
         self.client.send(command_encoded)
 
+    def send_text(self, text):
+        text_length = get_message_length(text)
+        self.client.send(text_length)
+
+        text_encoded = text.encode(FORMAT)
+        self.client.send(text_encoded)
+
     def send_message(self, message):
         """TO SEND A GLOBAL MESSAGE IN CURRENT ROOM"""
         self.send_type(TEXT_MESSAGE)
-        message_length = get_message_length(message)
-        self.client.send(message_length)
-
-        message_encoded = message.encode(FORMAT)
-        self.client.send(message_encoded)
+        self.send_text(message)
 
     def login(self):
-        pass
+        """LOGS THE USER IN"""
+        self.send_type(LOGIN)
+        user_name = input("Enter your username: ")
+        self.user_name = user_name
+        self.send_text(self.user_name)
+
 
 
 c = Client()
+c.login()
 msg = input("Enter your message: ")
 c.send_message(msg)
 input()
-c.send_message(DISCONNET_MESSAGE)
+c.send_type(DISCONNET_MESSAGE)
