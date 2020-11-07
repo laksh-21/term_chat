@@ -6,9 +6,11 @@ import User
 # GLOBAL VARIABLES
 ACTIVE_USERS = []
 
-server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-HOST = "0.0.0.0"
+# server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+server = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+HOST = "192.168.43.4"
 PORT = 8012
+
 SERVER_ADDRESS = (HOST, PORT)
 server.bind(SERVER_ADDRESS)
 

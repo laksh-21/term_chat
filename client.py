@@ -9,7 +9,7 @@ class Client():
         """CONNECTS THE USER TO THE SERVER
         """        
         self.HOST_NAME      = socket.gethostname()
-        self.HOST           = socket.gethostbyname(self.HOST_NAME)
+        self.HOST           = "192.168.43.4"
         self.PORT           = 8012
         self.CLIENT_ADDRESS = (self.HOST, self.PORT)
         self.client         = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
