@@ -1,5 +1,5 @@
 from random import choice
-from information import *
+from information import COLORS
 
 class User:
     def __init__(self, client_socket, address):

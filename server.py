@@ -7,6 +7,9 @@ import User
 ACTIVE_USERS = []
 
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+HOST = "0.0.0.0"
+PORT = 8012
+SERVER_ADDRESS = (HOST, PORT)
 server.bind(SERVER_ADDRESS)
 
 def get_text(user):
@@ -18,7 +21,7 @@ def get_text(user):
     Returns:
         [str/bool]: RETURNS TEXT IF THE SERVER GOT THE MESSAGE, FALSE IF IT DIDN'T
     """    
-    text_length = user.client_socket.recv(LEN_LENGTH).decode(FORMAT)
+    text_length = user.client_socket.recv(BUFFER).decode(FORMAT)
     if text_length:
         text_length = int(text_length)
         text = user.client_socket.recv(text_length).decode(FORMAT)
@@ -149,5 +152,5 @@ def listen():
         except Exception as e:
             print("[FAILURE: SERVER CRASHED]", e)
 
-print("[LISTENING] Server is now started and listening {}".format(SERVER))
+print("[LISTENING] Server is now started and listening {}".format(HOST))
 listen()

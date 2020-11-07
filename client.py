@@ -6,23 +6,31 @@ from termcolor import cprint
 class Client():
 
     def __init__(self):
-        self.client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.user_name = None
-        self.active = False
+        """CONNECTS THE USER TO THE SERVER
+        """        
+        self.HOST_NAME      = socket.gethostname()
+        self.HOST           = socket.gethostbyname(self.HOST_NAME)
+        self.PORT           = 8012
+        self.CLIENT_ADDRESS = (self.HOST, self.PORT)
+        self.client         = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.user_name      = None
+        self.active         = False
         try:
-            self.client.connect(SERVER_ADDRESS)
+            self.client.connect(self.CLIENT_ADDRESS)
         except Exception as e:
             print("[ERROR]", e)
             exit(0)
 
     def main(self):
+        """SETS UP SEND AND RECIEVE THREADS AND LOGS USER IN
+        """        
         done = self.login()
         if not done:
             return
-        self.active = True
+        self.active         = True
 
         self.recieve_thread = threading.Thread(target=self.recieve_messages)
-        self.send_thread = threading.Thread(target=self.send_messages)
+        self.send_thread    = threading.Thread(target=self.send_messages)
         
         self.recieve_thread.start()
         self.send_thread.start()
@@ -52,7 +60,12 @@ class Client():
 
         
     def get_text(self):
-        text_length = self.client.recv(LEN_LENGTH).decode(FORMAT)
+        """GETS ANY INCOMING MESSAGE FROM SERVER
+
+        Returns:
+            str/bool: RETURNS FALSE IF NO TEXT RECIEVED, TEXT IS ANY IS RECIEVED
+        """        
+        text_length = self.client.recv(BUFFER).decode(FORMAT)
         if text_length:
             text_length = int(text_length)
             text = self.client.recv(text_length).decode(FORMAT)

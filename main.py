@@ -38,7 +38,8 @@ class Chat():
             self.selectRoom()
 
     def getInput(self):
-        text = input("{}: ".format(self.user))
+        # text = input("{}: ".format(self.user))
+        pass
 
 chat_app = Chat()
 chat_app.main()
