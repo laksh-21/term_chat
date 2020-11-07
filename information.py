@@ -1,13 +1,14 @@
-import socket
-
 SERVER = "127.0.1.1"
 LEN_LENGTH = 64
 PORT = 5500
 SERVER_ADDRESS = (SERVER, PORT)
 FORMAT = "utf-8"
-DISCONNET_MESSAGE = "!DIS!"
-TEXT_MESSAGE = "!TXT!"
-LOGIN = "!LOG!"
+COLORS = ['red', 'green', 'blue', 'cyan']
+
+# CODES
+DISCONNECT_MESSAGE = "!DIS!"
+LOGIN_SUCCESSFUL = "!LOG!"
+LOGIN_UNSUCCESSFUL = "!!LOG!"
 
 
 def get_message_length(message):
