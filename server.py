@@ -2,14 +2,16 @@ import socket
 import threading
 from information import *
 import User
+import json
 
 # GLOBAL VARIABLES
 ACTIVE_USERS = []
 
 # server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-server = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 HOST = "192.168.43.4"
-PORT = 8012
+# HOST = socket.gethostbyname(socket.gethostname())
+PORT = 8010
 
 SERVER_ADDRESS = (HOST, PORT)
 server.bind(SERVER_ADDRESS)
@@ -66,6 +68,7 @@ def broadcast(user, message):
 
     for users in ACTIVE_USERS:
         if users != user:
+            users.client_socket.send(b'/sending_message')
             text = "{}: {}".format(user.user_name, message)
             send_color(users, user.color)
             send_text(users, text)
@@ -91,8 +94,14 @@ def disconnect_user(user):
         user (User): THE USER WHO NEEDS TO BE DISCONNECTED
     """    
     user.active = False
-    user.client_socket.close()
     print("[USER DISCONNECTION] {address}".format(address=user.address))
+
+def send_active_users(user):
+    user.client_socket.send(b'/active_members')
+    active_members = [member.user_name for member in ACTIVE_USERS]
+    print(active_members)
+    active_user_list = json.dumps(active_members).encode(FORMAT)
+    user.client_socket.send(active_user_list)
 
 def serve_client(user):
     """ THE SERVER SERVES THE CLIENT THAT CONNECTS TO THE SERVER
@@ -112,14 +121,27 @@ def serve_client(user):
     broadcast(user, message)
 
     while user.active:
-        text = get_text(user)
-        if text:
-            if(text == DISCONNECT_MESSAGE):
-                disconnect_user(user)
-            else:
-                broadcast(user, text)
-        else:
+
+        command = user.client_socket.recv(BUFFER).decode(FORMAT)
+
+        if not command:
             disconnect_user(user)
+
+        if command == '/message':
+            text = get_text(user)
+            broadcast(user, text)
+            pass
+        elif command == '/disconnect':
+            disconnect_user(user)
+        elif command == '/active_members':
+            send_active_users(user)
+        # if text:
+        #     if(text == DISCONNECT_MESSAGE):
+        #         disconnect_user(user)
+        #     else:
+        #         broadcast(user, text)
+        # else:
+        #     disconnect_user(user)
     
     ACTIVE_USERS.remove(user)
     message = "has left the chat."

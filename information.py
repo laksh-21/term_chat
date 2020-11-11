@@ -2,12 +2,13 @@
 BUFFER = 1024
 FORMAT = "utf-8"
 COLORS = ['red', 'green', 'blue', 'cyan']
+SPECIAL_CODES = ["/disc: to disconnect the user and safely exit.",
+                "/active: to display all active users."]
 
 # CODES
-DISCONNECT_MESSAGE = "!DIS!"
-LOGIN_SUCCESSFUL = "!LOG!"
-LOGIN_UNSUCCESSFUL = "!!LOG!"
-
+DISCONNECT_MESSAGE = "/disc"
+LOGIN_SUCCESSFUL = "!LOG"
+LOGIN_UNSUCCESSFUL = "!!LOG"
 
 def get_message_length(message):
     """TO CALCULATE THE LENGHT OF THE MESSAGE YOU'RE ABOUT TO SEND
