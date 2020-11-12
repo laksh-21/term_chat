@@ -1,8 +1,8 @@
 import socket
 import threading
+import json
 from information import *
 from termcolor import cprint
-import json
 
 class Client():
 
@@ -26,6 +26,10 @@ class Client():
         """SETS UP SEND AND RECIEVE THREADS AND LOGS USER IN
         """        
         done = self.login()
+        if not done:
+            return
+        
+        done = self.join_room()
         if not done:
             return
         
@@ -92,6 +96,8 @@ class Client():
             return False
 
     def get_active_users(self):
+        """TO RECIEVE A LIST OF ACTIVE USERS
+        """        
         active_user_list = self.client.recv(BUFFER)
         active_user_list = json.loads(active_user_list)
         print("Active users:")
@@ -103,17 +109,17 @@ class Client():
         """TO RECIEVE ANY MESSAGES FROM THE SERVER
         """        
         while self.active:
-            try:
-                command = self.client.recv(BUFFER).decode(FORMAT)
-                if command == '/sending_message':
-                    color = self.get_text()
-                    text = self.get_text()
-                    cprint(text, color)
-                elif command == '/active_members':
-                    self.get_active_users()
+            # try:
+            command = self.client.recv(BUFFER).decode(FORMAT)
+            if command == '/sending_message':
+                color = self.get_text()
+                text = self.get_text()
+                cprint(text, color)
+            elif command == '/active_members':
+                self.get_active_users()
 
-            except:
-                print("[DISCONNECTED]")
+            # except:
+            #     print("[DISCONNECTED]")
 
     def login(self):
         """SENDS THE USER'S NAME TO THE SERVER AND SETS THE USER'S NAME
@@ -126,8 +132,20 @@ class Client():
         except Exception as e:
             print("\n[UNEXPECTED EXIT BY USER]", e)
             return False
+
+    def join_room(self):
+        try:
+            group_name = input("Enter your group name: ")
+            self.group_name = group_name
+            self.send_text(self.group_name)
+            return True
+        except Exception as e:
+            print("\n[UNEXPECTED EXIT BY USER]", e)
+            return False
     
     def display_welcome_message(self):
+        """TO DISPLAY A WELCOME MESSAGE AND MENU FOR USER
+        """        
         print("Welcome! {}".format(self.user_name))
         print("You can perform the following operations by \ntyping the corresponding commands:")
         for i, command in enumerate(SPECIAL_CODES):

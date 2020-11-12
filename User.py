@@ -9,6 +9,8 @@ class User:
         self.active = False
         self.logged = False
         self.color = choice(COLORS)
+        self.group_name = None
+        self.joined = False
     
     def set_user_name(self, user_name):
         self.user_name = user_name

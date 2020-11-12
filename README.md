@@ -1,7 +1,7 @@
 # INTRODUCTION
 Term-chat(A **Term**inal **Chat**ting Application) is an application that lets you chat to other online members in real time. It uses sockets on the server and client end to send and recieve messages.
 
-# Instructions
+# INSTRUCTIONS
 
 **SERVER:**
 To run the server, run: 
