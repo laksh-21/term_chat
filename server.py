@@ -48,6 +48,14 @@ def user_login(user):
         user.logged = True
 
 def user_join_room(user):
+    """LETS THE USER JOIN A ROOM. IF THE ROOM DOES NOT ALREADY EXIST, IT IS CREATED.
+
+    Args:
+        user (User): THE USER WHO'S JOINING THE ROOM
+
+    Returns:
+        boolean: IF THE USER JOINED OR NOT
+    """    
     group_name = get_text(user)
     if group_name:
         user.group_name = group_name

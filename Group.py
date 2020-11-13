@@ -7,9 +7,19 @@ class Group:
         self.active_members = []
     
     def disconnect_user(self, user):
+        """REMOVES THE USER FROM THE ACTIVE USERS LIST
+
+        Args:
+            user (User): THE USER WHO NEEDS TO BE DISCONNECTED
+        """        
         self.active_members.remove(user)
 
     def connect(self, user):
+        """ADDS THE USER TO THE ACTIVE USERS LIST
+
+        Args:
+            user (User): THE USER WHO NEEDS TO JOIN THE ROOM
+        """        
         self.active_members.append(user)
 
     def send_color(self, user, color):
@@ -37,6 +47,12 @@ class Group:
         user.client_socket.send(text_encoded)
 
     def broadcast(self, message, user):
+        """BROADCASTS THE MESSAGE TO ALL THE USERS IN THE GROUP
+
+        Args:
+            message (str): WHAT MESSAGE THE USER SENT
+            user (User): WHICH USER SEND THE MESSAGE
+        """        
         for users in self.active_members:
             if users != user:
                 users.client_socket.send(b'/sending_message')

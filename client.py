@@ -134,6 +134,11 @@ class Client():
             return False
 
     def join_room(self):
+        """THE USER JOINS A ROOM
+
+        Returns:
+            boolean: IF USER JOINED OR NOT
+        """        
         try:
             group_name = input("Enter your group name: ")
             self.group_name = group_name

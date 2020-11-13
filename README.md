@@ -16,7 +16,8 @@ To run a client, run:
 # FEATURES
 1. Color coded messages for each user.
 2. View the list of active users
+3. Rooms
 
 # UPCOMING
 1. File sharing
-2. Rooms
+2. Admin functionality in rooms
