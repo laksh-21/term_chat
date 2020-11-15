@@ -1,160 +1,155 @@
 import socket
-import threading
+import json
 import User
 import Group
-import json
-from information import *
+import threading
+from termcolor import cprint
+from information import BUFFER, FORMAT, sysprint
 
-# GLOBAL VARIABLES
-ACTIVE_USERS = []
-GROUPS = {}
+class Server:
+    def __init__(self):
+        """ Initializes the Server information
+        """        
+        self.HOST       = socket.gethostbyname(socket.gethostname())
+        self.PORT       = 8800
+        self.ADDRESS    = (self.HOST, self.PORT)
+        self.groups     = {}
+    
+    def main(self):
+        """ Accepts incoming connections
+        """        
+        self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.server_socket.bind(self.ADDRESS)
+        self.server_socket.listen()
+        sysprint("Server is now Listening")
+        while True:
+            client_socket, address = self.server_socket.accept()
+            user = self.create_user(client_socket, address)
+            self.serve(user)
 
-# server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-HOST = "192.168.43.4"
-# HOST = socket.gethostbyname(socket.gethostname())
-PORT = 8010
+    def serve(self, user):
+        """ Logs the new connection in and starts a thread for it.
 
-SERVER_ADDRESS = (HOST, PORT)
-server.bind(SERVER_ADDRESS)
+        Args:
+            user (User): The new conncetion that was incoming
+        """        
+        self.login_user(user)
+        self.send(user, '/ready')
+        threading.Thread(target=self.serve_client, args=(user,)).start()
+    
+    def login_user(self, user):
+        """ Logs the user in and gets the group name. A new group is created
+            if the group requested does not exist already.
 
-def get_text(user):
-    """GETS THE TEXT FROM A CLIENT SOCKET
-
-    Args:
-        user (User): THE USER WHO IS SENDING THE MESSAGE
-
-    Returns:
-        [str/bool]: RETURNS TEXT IF THE SERVER GOT THE MESSAGE, FALSE IF IT DIDN'T
-    """    
-    text_length = user.client_socket.recv(BUFFER).decode(FORMAT)
-    if text_length:
-        text_length = int(text_length)
-        text = user.client_socket.recv(text_length).decode(FORMAT)
-        return text
-    else:
-        return False
-
-def user_login(user):
-    """lOGS THE USER IN WITH THEIR USERNAME
-
-    Args:
-        user (User): THE USER WHO IS LOGGING IN
-    """    
-    user_name = get_text(user)
-    if user_name:
+        Args:
+            user (User): The user who is supposed to be logged in
+        """        
+        user_name = self.get(user)
         user.user_name = user_name
-        ACTIVE_USERS.append(user)
-        user.logged = True
-
-def user_join_room(user):
-    """LETS THE USER JOIN A ROOM. IF THE ROOM DOES NOT ALREADY EXIST, IT IS CREATED.
-
-    Args:
-        user (User): THE USER WHO'S JOINING THE ROOM
-
-    Returns:
-        boolean: IF THE USER JOINED OR NOT
-    """    
-    group_name = get_text(user)
-    if group_name:
+        self.send(user, '/sendgroup')
+        group_name = self.get(user)
         user.group_name = group_name
-        user.joined = True
-        if group_name in GROUPS.keys():
-            GROUPS[group_name].connect(user)
+        if group_name in self.groups.keys():
+            self.groups[group_name].connect(user)
         else:
-            GROUPS[group_name] = Group.Group(group_name)
-            GROUPS[group_name].connect(user)
-        return True
-    else:
-        return False
-        
+            self.groups[group_name] = Group.Group(group_name)
+            self.groups[group_name].connect(user)
 
-def disconnect_user(user):
-    """REMOVES THE USER FROM THE ACTIVE USERS LIST SO THE SERVER STOPS SERVING THIS CLIENT SOCKET
+    def serve_client(self, user):
+        """ Manages all the operations for a patricular user
 
-    Args:
-        user (User): THE USER WHO NEEDS TO BE DISCONNECTED
-    """    
-    user.active = False
-    GROUPS[user.group_name].disconnect_user(user)
-    print("[USER DISCONNECTION] {address}".format(address=user.address))
-
-def send_active_users(user):
-    """SENDS THE LIST OF ACTIVE USERS TO THE USER WHO REQUESTED IT
-
-    Args:
-        user (User): THE USER WHO REQUESTED IT
-    """    
-    user.client_socket.send(b'/active_members')
-    active_members = [member.user_name for member in GROUPS[user.group_name].active_members]
-    active_user_list = json.dumps(active_members).encode(FORMAT)
-    user.client_socket.send(active_user_list)
-
-def serve_client(user):
-    """ THE SERVER SERVES THE CLIENT THAT CONNECTS TO THE SERVER
-
-    Args:
-        user (User): THE USER THAT NEEDS TO BE SERVED
-    """    
-    print("[NEW CONNECTION] {address}".format(address=user.address))
-    user_login(user)
-    if not user.logged:
-        disconnect_user(user)
-        return
+        Args:
+            user (User): The user who needs to be served
+        """        
+        while True:
+            message = self.get(user)
+            if not message:
+                self.group_disconnect(user)
+                break
+            if message == '/disconnect':
+                self.disconnect_user(user)
+                break
+            elif message == '/send_message':
+                self.broadcast_message(user)
+            elif message == '/active_members':
+                self.send_active_members(user)
+            else:
+                print("[NOT A VALID COMMAND]", message)
+        self.groups[user.group_name].broadcast(user, "has left the chat.")
     
-    user_join_room(user)
-    if not user.joined:
-        disconnect_user(user)
-        return
+    def create_user(self, client_socket, address):
+        """ A new user object is created
 
-    message = "has joined the room."
-    GROUPS[user.group_name].broadcast(message, user)
+        Args:
+            client_socket (socket.socket): The client socket of the user
+            address (tuple): The address of the user
 
-    while user.active:
-        command = user.client_socket.recv(BUFFER).decode(FORMAT)
-        if command == '/message':
-            text = get_text(user)
-            GROUPS[user.group_name].broadcast(text, user)
-            pass
-        elif command == '/disconnect':
-            disconnect_user(user)
-        elif command == '/active_members':
-            send_active_users(user)
-        else:
-            disconnect_user(user)
+        Returns:
+            User: The new user object that has been created
+        """        
+        user = User.User(client_socket, address)
+        return user
     
-    ACTIVE_USERS.remove(user)
-    message = "has left the chat."
-    GROUPS[user.group_name].broadcast(message, user)
+    def disconnect_user(self, user):
+        """ Disonnects the user from the group it was in.
 
-def create_user(client_socket, address):
-    """CREATES A User OBJECT
+        Args:
+            user ([type]): [description]
+        """        
+        self.send(user, '/disconnect')
+        self.get(user) # Unused Command
+        self.group_disconnect(user)
+        print("[DISCONNECTION]", user.address)
+    
+    def group_disconnect(self, user):
+        """ Disconnects the user from the group it had joined
 
-    Args:
-        client_socket (sokcet.socket): THE CLIENT SOCKET WHICH REQUIRES SERVICE
-        address (tuple): PORT OF CLIENT
+        Args:
+            user (User): The user who needs to be disconnected
+        """        
+        self.groups[user.group_name].disconnect_user(user)
 
-    Returns:
-        User: RETURNS THE OBJECT OF USER
-    """    
-    user = User.User(client_socket, address)
-    user.active = True
-    return user
+    def broadcast_message(self, user):
+        """ Broadcasts the message sent by a user to all the other users in the group
 
-def listen():
-    """LISTENS FOR ANY CONNECTION REQUESTS
-    """    
-    server.listen()
-    listening = True
-    while listening:
-        try:
-            client_socket, address = server.accept()
-            user = create_user(client_socket, address)
-            thread = threading.Thread(target=serve_client, args=(user,))
-            thread.start()
-        except Exception as e:
-            print("[FAILURE: SERVER CRASHED]", e)
+        Args:
+            user (User): The user who sent the message
+        """        
+        self.send(user, '/send_message')
+        text = self.get(user)
+        self.groups[user.group_name].broadcast(user, text)
+    
+    def send_active_members(self, user):
+        """ Sends the list of active members to the user that requested it
 
-print("[LISTENING] Server is now started and listening {}".format(HOST))
-listen()
+        Args:
+            user (User): The user who requested it
+        """        
+        self.send(user, '/active_members')
+        self.get(user) # Unused command
+        self.groups[user.group_name].send_active_users(user)
+
+    def send(self, user, message):
+        """ Sends the message to the user in byte form
+
+        Args:
+            user (User): The user who needs to be sent
+            message (str): The message that is supposed to be sent
+        """        
+        user.client_socket.send(bytes(message, FORMAT))
+    
+    def get(self, user):
+        """ Gets the message in byte form from the user
+
+        Args:
+            user (User): The user who we need to get the message from
+
+        Returns:
+            str: The decoded message sent by the user
+        """        
+        message = user.client_socket.recv(BUFFER).decode(FORMAT)
+        return message
+
+
+server = Server()
+server.main()

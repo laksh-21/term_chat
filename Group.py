@@ -1,61 +1,55 @@
 import User
-from information import *
+import json
+from information import FORMAT,BUFFER
+import time
 
 class Group:
     def __init__(self, name):
-        self.group_name = name
+        """Initializes the Group object
+
+        Args:
+            name (str): The name of the group
+        """        
+        self.group_name     = name
         self.active_members = []
     
     def disconnect_user(self, user):
-        """REMOVES THE USER FROM THE ACTIVE USERS LIST
+        """Removes the user from the active users list
 
         Args:
-            user (User): THE USER WHO NEEDS TO BE DISCONNECTED
+            user (User): The user who needs to be disconnected
         """        
         self.active_members.remove(user)
 
     def connect(self, user):
-        """ADDS THE USER TO THE ACTIVE USERS LIST
+        """Adds the user to the active users list
 
         Args:
             user (User): THE USER WHO NEEDS TO JOIN THE ROOM
         """        
         self.active_members.append(user)
 
-    def send_color(self, user, color):
-        """SENDS THE COLOR OF THE TEXT TO THE CLIENT
+    def broadcast(self, user, message):
+        """Broadcasts the message to all the users in the group
 
         Args:
-            user (User): THE USER TO WHOM THE COLOR SHOULD BE SENT
-            color (str): THE COLOR THAT SHOULD BE SENT
-        """    
-
-        color_length = get_message_length(color)
-        user.client_socket.send(color_length)
-        color_encoded = color.encode(FORMAT)
-        user.client_socket.send(color_encoded)
-
-    def send_text(self, user, text):
-        """SENDS ANY TEXT TO THE CLIENT
-
-        Args:
-            text (str): THE TEXT THAT NEEDS TO BE SENT
-        """   
-        text_length = get_message_length(text)
-        user.client_socket.send(text_length)
-        text_encoded = text.encode(FORMAT)
-        user.client_socket.send(text_encoded)
-
-    def broadcast(self, message, user):
-        """BROADCASTS THE MESSAGE TO ALL THE USERS IN THE GROUP
-
-        Args:
-            message (str): WHAT MESSAGE THE USER SENT
-            user (User): WHICH USER SEND THE MESSAGE
+            message (str): What message the user sent
+            user (User): Which user send the messaGE
         """        
         for users in self.active_members:
             if users != user:
-                users.client_socket.send(b'/sending_message')
-                text = "{}: {}".format(user.user_name, message)
-                self.send_color(users, user.color)
-                self.send_text(users, text)
+                message = "{}: {}".format(user.user_name, message)
+                users.client_socket.send(bytes(message, FORMAT))
+                time.sleep(0.1)
+                users.client_socket.send(bytes(user.color, FORMAT))
+
+    def send_active_users(self, user):
+        """Sends the list of active users to the user who requested it
+
+        Args:
+            user (User): The user who requested it
+        """   
+        active_members = [member.user_name for member in self.active_members]
+        active_user_list = json.dumps(active_members).encode(FORMAT)
+        user.client_socket.send(active_user_list)
+

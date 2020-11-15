@@ -1,161 +1,163 @@
 import socket
-import threading
 import json
-from information import *
-from termcolor import cprint
+import threading
+from termcolor import cprint,colored
+from information import FORMAT,BUFFER,SYS_COLOR,sysprint
 
-class Client():
-
+class Client:
     def __init__(self):
-        """CONNECTS THE USER TO THE SERVER
+        """ Initializes the Client informations
         """        
-        self.HOST_NAME      = socket.gethostname()
-        self.HOST           = "192.168.43.4"
-        self.PORT           = 8010
-        self.CLIENT_ADDRESS = (self.HOST, self.PORT)
-        self.client         = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.user_name      = None
-        self.active         = False
-        try:
-            self.client.connect(self.CLIENT_ADDRESS)
-        except Exception as e:
-            print("[ERROR]", e)
-            exit(0)
+        self.HOST       = socket.gethostbyname(socket.gethostname())
+        self.PORT       = 8800
+        self.ADDRESS    = (self.HOST, self.PORT)
+        self.user_name  = None
+        self.group_name = None
+        self.active     = False
+        self.disconnect = False
+        self.take_input = True
+        self.message    = None
 
     def main(self):
-        """SETS UP SEND AND RECIEVE THREADS AND LOGS USER IN
+        """ Connects the client to the server socket aand logs the user in
+            The input and output threads are created and started
         """        
-        done = self.login()
-        if not done:
-            return
-        
-        done = self.join_room()
-        if not done:
-            return
-        
-        self.active         = True
+        self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.server_socket.connect(self.ADDRESS)
 
-        self.display_welcome_message()
+        self.lock = threading.Lock()
+        self.condition = threading.Condition()
 
-        self.recieve_thread = threading.Thread(target=self.recieve_messages)
-        self.send_thread    = threading.Thread(target=self.send_messages)
-        
-        self.recieve_thread.start()
-        self.send_thread.start()
+        self.get_info()
+        self.send_info()
+
+        self.start_threads()
+
+        if self.active:
+            self.print_menu()
 
         while True:
             if not self.active:
-                self.client.shutdown(socket.SHUT_RDWR)
-                self.client.close()
-                self.recieve_thread.join()
-                self.send_thread.join()
-                cprint("You have been disconnected.", 'magenta')
+                self.disconnect_client()
                 break
 
+    def get_input(self):
+        """ Gets the user input and interprets what the user wants to do.
+        """        
+        while self.active:
+            self.lock.acquire()
+            self.message = input()
+            self.lock.release()
+
+            with self.condition:
+                self.condition.notify()
+            
+            if self.message == '/1':
+                self.send('/disconnect')
+                break
+            elif self.message == '/2':
+                self.send('/active_members')
+            elif self.message == '/3':
+                self.print_menu()
+            elif self.take_input:
+                self.lock.acquire()
+                self.send('/send_message')
 
 
-    def send_text(self, text):
-        """SENDS ANY TEXT TO THE SERVER
+    def listen(self):
+        """ Listens to that the server is sending and processes all the requests.
+        """        
+        while True:
+            message = self.get()
+            if message == '/disconnect':
+                self.send('.')
+                self.active = False
+                break
+            elif message == '/send_message':
+                self.send(self.message)
+                self.lock.release()
+            elif message == '/active_members':
+                self.get_active_members()
+            else:
+                color = self.get()
+                cprint(message, color)
+
+    def get_active_members(self):
+        """ Recieves the list of active members in current from the server and prints them
+        """        
+        self.send('.')
+        active_members = json.loads(self.get())
+        sysprint("Active members in {}".format(self.group_name))
+        for num, member in enumerate(active_members):
+            sysprint("{}. {}".format(num+1, member))
+    
+    def disconnect_client(self):
+        """ Shuts down the client-server conncetion and the threads are dissolved
+        """        
+        self.server_socket.shutdown(socket.SHUT_RDWR)
+        self.server_socket.close()
+        self.end_threads()
+        sysprint("Disconnected!")
+    
+    def start_threads(self):
+        """ The unput and listen threads are created and started
+        """        
+        self.input_thread = threading.Thread(target=self.get_input)
+        self.listen_thread = threading.Thread(target=self.listen)
+        self.input_thread.start()
+        self.listen_thread.start()
+    
+    def end_threads(self):
+        """ The input and output threads are dissolved
+        """        
+        self.input_thread.join()
+        self.listen_thread.join()
+        
+    def print_menu(self):
+        """ Prints the command menu for the user
+        """        
+        sysprint("You can do these operations by typing such commands")
+        sysprint("/1 : Disconnect")
+        sysprint("/2 : Display Active Users")
+        sysprint("/3 : Print menu again")
+        sysprint("Type anything else to send a message")
+
+    def get_info(self):
+        """ Gets the User Name and Group name of the user
+        """        
+        cprint("Welcome to Term-Chat!")
+        self.user_name = input(colored("Enter your username: ", SYS_COLOR))
+        self.group_name = input(colored("Enter the Group Name: ", SYS_COLOR))
+    
+    def send_info(self):
+        """ Sends the user information to the server in order to be logged in
+        """        
+        self.send(self.user_name)
+        command = self.get()
+        self.send(self.group_name)
+        command = self.get()
+        if command == '/ready':
+            sysprint("You have joined the group {}!".format(self.group_name))
+            self.active = True
+        elif command == '/error':
+            sysprint("[ERROR]")
+    
+    def send(self, message):
+        """ Sends a particular message in byte form to the server
 
         Args:
-            text (str): THE TEXT THAT NEEDS TO BE SENT
-        """   
-        text_length = get_message_length(text)
-        self.client.send(text_length)
-
-        text_encoded = text.encode(FORMAT)
-        self.client.send(text_encoded)
-
-    def send_messages(self):
-        """TO SEND A GLOBAL MESSAGE IN CURRENT ROOM
+            message (str): The message that needs to be sent
         """        
-        while self.active:
-            message = input()
-            if message == '/disc':
-                self.client.send(b'/disconnect')
-                self.active = False
-            elif message == '/active':
-                self.client.send(b'/active_members')
-            else:
-                self.client.send(b'/message')
-                self.send_text(message)
-
-        
-    def get_text(self):
-        """GETS ANY INCOMING MESSAGE FROM SERVER
-
-        Returns:
-            str/bool: RETURNS FALSE IF NO TEXT RECIEVED, TEXT IS ANY IS RECIEVED
-        """        
-        text_length = self.client.recv(BUFFER).decode(FORMAT)
-        if text_length:
-            text_length = int(text_length)
-            text = self.client.recv(text_length).decode(FORMAT)
-            return text
-        else:
-            return False
-
-    def get_active_users(self):
-        """TO RECIEVE A LIST OF ACTIVE USERS
-        """        
-        active_user_list = self.client.recv(BUFFER)
-        active_user_list = json.loads(active_user_list)
-        print("Active users:")
-        for number, user in enumerate(active_user_list):
-            cprint("{}: {}".format(number+1, user), 'magenta')
-
-
-    def recieve_messages(self):
-        """TO RECIEVE ANY MESSAGES FROM THE SERVER
-        """        
-        while self.active:
-            # try:
-            command = self.client.recv(BUFFER).decode(FORMAT)
-            if command == '/sending_message':
-                color = self.get_text()
-                text = self.get_text()
-                cprint(text, color)
-            elif command == '/active_members':
-                self.get_active_users()
-
-            # except:
-            #     print("[DISCONNECTED]")
-
-    def login(self):
-        """SENDS THE USER'S NAME TO THE SERVER AND SETS THE USER'S NAME
-        """          
-        try:
-            user_name = input("Enter your username: ")
-            self.user_name = user_name
-            self.send_text(self.user_name)
-            return True
-        except Exception as e:
-            print("\n[UNEXPECTED EXIT BY USER]", e)
-            return False
-
-    def join_room(self):
-        """THE USER JOINS A ROOM
-
-        Returns:
-            boolean: IF USER JOINED OR NOT
-        """        
-        try:
-            group_name = input("Enter your group name: ")
-            self.group_name = group_name
-            self.send_text(self.group_name)
-            return True
-        except Exception as e:
-            print("\n[UNEXPECTED EXIT BY USER]", e)
-            return False
+        self.server_socket.send(bytes(message, FORMAT))
     
-    def display_welcome_message(self):
-        """TO DISPLAY A WELCOME MESSAGE AND MENU FOR USER
+    def get(self):
+        """ Recieves what message has been sent by the user
+
+        Returns:
+            str: The message sent by the user
         """        
-        print("Welcome! {}".format(self.user_name))
-        print("You can perform the following operations by \ntyping the corresponding commands:")
-        for i, command in enumerate(SPECIAL_CODES):
-            cprint("{}: {}".format(i+1, command), "magenta")
+        command = self.server_socket.recv(BUFFER).decode(FORMAT)
+        return command
 
-
-c = Client()
-c.main()
+client = Client()
+client.main()
