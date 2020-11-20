@@ -1,8 +1,10 @@
 import socket
 import json
+import os
+import tqdm
 import threading
 from termcolor import cprint,colored
-from information import FORMAT,BUFFER,SYS_COLOR,sysprint
+from information import FORMAT,BUFFER,SYS_COLOR,CODE,SEPERATOR,sysprint
 
 class Client:
     def __init__(self):
@@ -53,15 +55,17 @@ class Client:
                 self.condition.notify()
             
             if self.message == '/1':
-                self.send('/disconnect')
+                self.send(CODE['disconnect'])
                 break
             elif self.message == '/2':
-                self.send('/active_members')
+                self.send(CODE['online'])
             elif self.message == '/3':
+                self.send(CODE['fileTransfer'])
+            elif self.message == '/4':
                 self.print_menu()
             elif self.take_input:
                 self.lock.acquire()
-                self.send('/send_message')
+                self.send(CODE['message'])
 
 
     def listen(self):
@@ -69,18 +73,49 @@ class Client:
         """        
         while True:
             message = self.get()
-            if message == '/disconnect':
+            if message == CODE['disconnect']:
                 self.send('.')
                 self.active = False
                 break
-            elif message == '/send_message':
+            elif message == CODE['message']:
                 self.send(self.message)
                 self.lock.release()
-            elif message == '/active_members':
+            elif message == CODE['online']:
                 self.get_active_members()
+            elif message == CODE['fileTransfer']:
+                self.take_input = False
+                self.send_file()
+                self.take_input = True
             else:
                 color = self.get()
                 cprint(message, color)
+    
+    def send_file(self):
+        file_name = input(colored("Enter file name: ", SYS_COLOR))
+        try:
+            open(file_name, 'rb')
+        except Exception as e:
+            sysprint("[ERROR] : {}".format(e))
+            self.send(CODE['error'])
+            return
+        file_size = os.path.getsize(file_name)
+        self.send("{}{}{}".format(file_name, SEPERATOR, file_size))
+        command = self.get()
+        if command != '/ready':
+            sysprint("Error at server side")
+            return
+        
+        with open(file_name, 'rb') as file:
+            while True:
+                bytes_read = file.read(BUFFER)
+                if not bytes_read:
+                    break
+                self.server_socket.send(bytes_read)
+                print(bytes_read)
+        
+        self.send("/allSentMyGuy")
+        sysprint("Sent to server!")
+        
 
     def get_active_members(self):
         """ Recieves the list of active members in current from the server and prints them
@@ -119,7 +154,8 @@ class Client:
         sysprint("You can do these operations by typing such commands")
         sysprint("/1 : Disconnect")
         sysprint("/2 : Display Active Users")
-        sysprint("/3 : Print menu again")
+        sysprint("/3 : Send a file")
+        sysprint("/4 : Print menu again")
         sysprint("Type anything else to send a message")
 
     def get_info(self):
@@ -133,13 +169,13 @@ class Client:
         """ Sends the user information to the server in order to be logged in
         """        
         self.send(self.user_name)
-        command = self.get()
+        command = self.get() # Ununsed command
         self.send(self.group_name)
         command = self.get()
-        if command == '/ready':
+        if command == CODE['ready']:
             sysprint("You have joined the group {}!".format(self.group_name))
             self.active = True
-        elif command == '/error':
+        elif command == CODE['error']:
             sysprint("[ERROR]")
     
     def send(self, message):

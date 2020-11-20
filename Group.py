@@ -13,7 +13,7 @@ class Group:
         self.group_name     = name
         self.active_members = []
     
-    def disconnect_user(self, user):
+    def disconnect_user(self, user: User):
         """Removes the user from the active users list
 
         Args:
@@ -21,7 +21,7 @@ class Group:
         """        
         self.active_members.remove(user)
 
-    def connect(self, user):
+    def connect(self, user: User):
         """Adds the user to the active users list
 
         Args:
@@ -29,7 +29,7 @@ class Group:
         """        
         self.active_members.append(user)
 
-    def broadcast(self, user, message):
+    def broadcast(self, user: User, message):
         """Broadcasts the message to all the users in the group
 
         Args:
@@ -43,7 +43,7 @@ class Group:
                 time.sleep(0.1)
                 users.client_socket.send(bytes(user.color, FORMAT))
 
-    def send_active_users(self, user):
+    def send_active_users(self, user: User):
         """Sends the list of active users to the user who requested it
 
         Args:
