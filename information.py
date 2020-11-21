@@ -11,7 +11,11 @@ CODE = {'disconnect'    : '/disconnect',
         'online'        : '/active_members',
         'ready'         : '/ready',
         'error'         : '/error',
-        'fileTransfer'  : '/sending_file'}
+        'fileTransferS' : '/sending_file',
+        'fileTransferC' : '/recieving_file',
+        'all_sent'      : '/transfer_done',
+        'sendFileName'  : '/send_file_name',
+        'sendFile'      : '/send_file'}
 
 def sysprint(text):
     cprint(text, SYS_COLOR)

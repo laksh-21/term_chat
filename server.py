@@ -16,11 +16,13 @@ class Server:
         self.PORT       = 8800
         self.ADDRESS    = (self.HOST, self.PORT)
         self.groups     = {}
+        self.condition  = threading.Condition()
     
     def main(self):
         """ Accepts incoming connections
         """        
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.server_socket.bind(self.ADDRESS)
         self.server_socket.listen()
         sysprint("Server is now Listening")
@@ -75,8 +77,11 @@ class Server:
                 self.broadcast_message(user)
             elif message == CODE['online']:
                 self.send_active_members(user)
-            elif message == CODE['fileTransfer']:
+            elif message == CODE['fileTransferS']:
                 self.get_file(user)
+            elif message == CODE['sendFileName'] or message == CODE['sendFile']:
+                with self.condition:
+                    self.condition.notify()
             else:
                 print("[NOT A VALID COMMAND]", message)
         self.groups[user.group_name].broadcast(user, "has left the chat.")
@@ -134,11 +139,16 @@ class Server:
         self.groups[user.group_name].send_active_users(user)
     
     def get_file(self, user: User):
-        self.send(user, CODE['fileTransfer'])
+        """ Recieves the file from the client
+
+        Args:
+            user (User): The user who is sending the message
+        """        
+        self.send(user, CODE['fileTransferS'])
         message = self.get(user)
         if message == CODE['error']:
             return
-        self.send(user, '/ready')
+        self.send(user, CODE['ready'])
         file_name, file_size = message.split(SEPERATOR)
         file_name = os.path.basename(file_name)
         file_size = int(file_size)
@@ -150,7 +160,34 @@ class Server:
                 file.write(bytes_read)
                 gotten += len(bytes_read)
         
-        print("Recieved!")
+        command = self.get(user)
+        if(command == CODE['all_sent']):
+            print("Recieved!")
+        
+        self.send_file(user, file_name, str(file_size))
+
+    def send_file(self, user: User, file_name: str, file_size: str):
+        for users in self.groups[user.group_name].active_members:
+            if users == user:
+                continue
+            self.send(users, CODE['fileTransferC'])
+            with self.condition:
+                self.condition.wait()
+            
+            name_size = SEPERATOR.join([file_name, file_size])
+            self.send(users, name_size)
+            with self.condition:
+                self.condition.wait()
+            
+            with open(file_name, 'rb') as file:
+                while True:
+                    bytes_read = file.read(BUFFER)
+                    if not bytes_read:
+                        break
+                    users.client_socket.send(bytes_read)
+            
+            sysprint("Sent to user {}".format(users.user_name))
+            os.remove(file_name)
 
 
     def send(self, user: User, message):

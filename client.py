@@ -60,7 +60,7 @@ class Client:
             elif self.message == '/2':
                 self.send(CODE['online'])
             elif self.message == '/3':
-                self.send(CODE['fileTransfer'])
+                self.send(CODE['fileTransferS'])
             elif self.message == '/4':
                 self.print_menu()
             elif self.take_input:
@@ -82,15 +82,21 @@ class Client:
                 self.lock.release()
             elif message == CODE['online']:
                 self.get_active_members()
-            elif message == CODE['fileTransfer']:
+            elif message == CODE['fileTransferS']:
                 self.take_input = False
                 self.send_file()
                 self.take_input = True
+            elif message == CODE['fileTransferC']:
+                # self.take_input = False
+                self.get_file()
+                # self.take_input = True
             else:
                 color = self.get()
                 cprint(message, color)
     
     def send_file(self):
+        """Sends a file to the server.
+        """        
         file_name = input(colored("Enter file name: ", SYS_COLOR))
         try:
             open(file_name, 'rb')
@@ -101,7 +107,7 @@ class Client:
         file_size = os.path.getsize(file_name)
         self.send("{}{}{}".format(file_name, SEPERATOR, file_size))
         command = self.get()
-        if command != '/ready':
+        if command != CODE['ready']:
             sysprint("Error at server side")
             return
         
@@ -111,11 +117,28 @@ class Client:
                 if not bytes_read:
                     break
                 self.server_socket.send(bytes_read)
-                print(bytes_read)
         
-        self.send("/allSentMyGuy")
+        self.send(CODE['all_sent'])
         sysprint("Sent to server!")
         
+    
+    def get_file(self):
+        self.send(CODE['sendFileName'])
+        message = self.get()
+        file_name, file_size = message.split(SEPERATOR)
+        self.send(CODE['sendFile'])
+        file_name = os.path.basename(file_name)
+        file_size = int(file_size)
+
+        with open(file_name, "wb") as file:
+            gotten = 0
+            while gotten < file_size:
+                bytes_read = self.server_socket.recv(BUFFER)
+                file.write(bytes_read)
+                gotten += len(bytes_read)
+        
+        sysprint("Recieved {}!".format(file_name))
+
 
     def get_active_members(self):
         """ Recieves the list of active members in current from the server and prints them

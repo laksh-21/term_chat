@@ -1,6 +1,6 @@
 import User
 import json
-from information import FORMAT,BUFFER
+from information import FORMAT,BUFFER,SEPERATOR
 import time
 
 class Group:
@@ -52,4 +52,3 @@ class Group:
         active_members = [member.user_name for member in self.active_members]
         active_user_list = json.dumps(active_members).encode(FORMAT)
         user.client_socket.send(active_user_list)
-
